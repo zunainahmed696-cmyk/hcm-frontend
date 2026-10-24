@@ -142,14 +142,14 @@ export const EmployeeDashboard: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Top Welcome Banner */}
-      <div className="surface-card rounded-2xl p-6 sm:p-8 border border-brand-500/30 shadow-2xl relative overflow-hidden bg-gradient-to-r from-[#0E1420] via-brand-950/30 to-[#080B11]">
+      <div className="surface-card rounded-2xl p-6 sm:p-8 border border-zinc-800 relative overflow-hidden bg-zinc-900/50">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase font-mono font-bold text-brand-400">
+              <span className="text-xs uppercase font-mono font-bold text-zinc-400">
                 Employee Workspace
               </span>
-              <Badge variant="emerald">Live Shift</Badge>
+              <Badge variant="zinc">Live Shift</Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               Welcome back, {employee.name}!

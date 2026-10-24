@@ -543,18 +543,18 @@ export const Leave: React.FC = () => {
           </div>
 
           {/* Smart Leave (NLP Plain-Words Parser) */}
-          <div className="surface-card rounded-2xl p-6 border border-brand-500/30 shadow-xl space-y-3 relative overflow-hidden bg-gradient-to-br from-brand-950/20 via-slate-900 to-[#080B11]">
+          <div className="surface-card rounded-2xl p-6 border border-zinc-800 space-y-3 relative overflow-hidden bg-zinc-950">
             <div className="flex items-center justify-between">
               <label className="text-sm font-bold text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-brand-400" />
+                <Sparkles className="w-4 h-4 text-white" />
                 Smart Leave in Plain Words
               </label>
-              <span className="text-[10px] font-mono text-brand-300 bg-brand-500/20 px-2 py-0.5 rounded border border-brand-500/30">
+              <span className="text-[10px] font-mono text-zinc-300 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-700">
                 NLP Parser Active
               </span>
             </div>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-zinc-400">
               Type your leave in natural language (e.g. <em>"Need next Monday and Tuesday off for family wedding"</em> or{' '}
               <em>"Sick leave tomorrow morning due to flu"</em>).
             </p>
@@ -566,7 +566,7 @@ export const Leave: React.FC = () => {
                 onChange={(e) => setSmartPrompt(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSmartParse()}
                 placeholder="e.g. Need next Monday and Tuesday off for family wedding"
-                className="flex-1 rounded-xl surface-input px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-brand-500"
+                className="flex-1 rounded-xl surface-input px-4 py-2.5 text-sm text-white placeholder:text-zinc-500 outline-none focus:border-zinc-500"
               />
               <Button
                 type="button"
@@ -580,7 +580,7 @@ export const Leave: React.FC = () => {
             </div>
 
             {smartParsedNotice && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 font-mono">
+              <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 font-mono">
                 {smartParsedNotice}
               </div>
             )}

@@ -1710,31 +1710,31 @@ export const Employees: React.FC = () => {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">
                   Compensation &amp; Salary Structure (1.5× Rule)
                 </h4>
-                <div className="p-4 rounded-xl bg-gradient-to-br from-brand-950/40 to-slate-900 border border-brand-500/30 space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                    <span className="text-xs text-slate-300">Basic Monthly Pay</span>
+                <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                    <span className="text-xs text-zinc-400">Basic Monthly Pay</span>
                     <span className="font-mono font-bold text-white text-sm num-tabular">
                       {formatPKR(active360Employee.basicSalary)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
+                  <div className="flex items-center justify-between text-xs text-zinc-400">
                     <span>House Rent Allowance (HRA - 40%)</span>
-                    <span className="font-mono text-indigo-300 num-tabular">
+                    <span className="font-mono text-zinc-300 num-tabular">
                       {formatPKR(Math.round(active360Employee.basicSalary * 0.4))}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-white/5">
+                  <div className="flex items-center justify-between text-xs text-zinc-400 pb-2 border-b border-zinc-800">
                     <span>Medical Allowance (10%)</span>
-                    <span className="font-mono text-indigo-300 num-tabular">
+                    <span className="font-mono text-zinc-300 num-tabular">
                       {formatPKR(Math.round(active360Employee.basicSalary * 0.1))}
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-1">
                     <div>
-                      <span className="text-xs font-bold text-emerald-400 block">Gross Monthly Salary</span>
-                      <span className="text-[10px] text-emerald-500/80">150% of Basic Pay</span>
+                      <span className="text-xs font-bold text-zinc-100 block">Gross Monthly Salary</span>
+                      <span className="text-[10px] text-zinc-400">150% of Basic Pay</span>
                     </div>
-                    <span className="font-mono text-lg font-black text-emerald-300 num-tabular">
+                    <span className="font-mono text-lg font-black text-white num-tabular">
                       {formatPKR(active360Employee.grossSalary || Math.round(active360Employee.basicSalary * 1.5))}
                     </span>
                   </div>
