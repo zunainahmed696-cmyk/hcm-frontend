@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AuthShell } from '../components/AuthShell';
@@ -22,8 +22,10 @@ export const Login: React.FC = () => {
 
   if (isAuthenticated && user) {
     if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
+    const defaultTarget = user.role === 'employee' ? '/clockin-out' : '/dashboard';
     const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
-    return <Navigate to={from || '/dashboard'} replace />;
+    const target = from && !(user.role === 'employee' && from === '/dashboard') ? from : defaultTarget;
+    return <Navigate to={target} replace />;
   }
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -42,7 +44,17 @@ export const Login: React.FC = () => {
     <AuthShell
       title="Access Your Workspace"
       subtitle="Sign in to your account with corporate credentials."
-      footer="Employees and HR Officers sign in using credentials provisioned by administrators."
+      footer={
+        <div className="space-y-2">
+          <p>Employees and HR Officers sign in using credentials provisioned by administrators.</p>
+          <p>
+            Need to initialize or configure a company workspace?{' '}
+            <Link to="/setup" className="text-brand-400 hover:text-brand-300 font-semibold">
+              Sign Up &amp; Setup Company
+            </Link>
+          </p>
+        </div>
+      }
     >
       <form onSubmit={onSubmit} className="space-y-5" noValidate>
         {params.get('registered') && !error && (

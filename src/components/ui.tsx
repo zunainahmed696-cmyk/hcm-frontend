@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, LucideIcon } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, LucideIcon, X } from 'lucide-react';
 
 export const Spinner: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <Loader2 className={`animate-spin ${className}`} aria-hidden="true" />
@@ -13,16 +13,19 @@ export const FullPageSpinner: React.FC<{ label?: string }> = ({ label = 'Loading
 );
 
 /* Alerts: Monochrome high-contrast feedback */
-export const Alert: React.FC<{ kind?: 'error' | 'success' | 'info'; children: React.ReactNode }> = ({
+export const Alert: React.FC<{ kind?: 'error' | 'success' | 'info' | 'warning'; children: React.ReactNode }> = ({
   kind = 'error',
   children,
 }) => {
   const isError = kind === 'error';
   const isSuccess = kind === 'success';
-  const Icon = isError ? AlertCircle : CheckCircle2;
+  const isWarning = kind === 'warning';
+  const Icon = isError || isWarning ? AlertCircle : CheckCircle2;
 
   const styles = isError
     ? 'border-zinc-800 bg-zinc-900 text-rose-300'
+    : isWarning
+    ? 'border-amber-500/30 bg-zinc-900 text-amber-300'
     : isSuccess
     ? 'border-zinc-800 bg-zinc-900 text-emerald-300'
     : 'border-zinc-800 bg-zinc-900 text-zinc-200';
@@ -102,7 +105,7 @@ export const SubmitButton: React.FC<{ loading: boolean; children: React.ReactNod
 
 /* Badges: Monochrome clean borders & muted tags */
 export interface BadgeProps {
-  variant?: 'emerald' | 'amber' | 'rose' | 'indigo' | 'slate' | 'zinc';
+  variant?: 'emerald' | 'amber' | 'rose' | 'indigo' | 'slate' | 'zinc' | 'sky';
   pulse?: boolean;
   children: React.ReactNode;
 }
@@ -115,6 +118,7 @@ export const Badge: React.FC<BadgeProps> = ({ variant = 'zinc', pulse = false, c
     rose: 'bg-zinc-900 text-rose-400 border-zinc-800',
     indigo: 'bg-zinc-100 text-zinc-950 border-white font-bold',
     slate: 'bg-zinc-900 text-zinc-300 border-zinc-800',
+    sky: 'bg-zinc-900 text-sky-400 border-zinc-800',
   };
 
   const pulseColors = {
@@ -124,6 +128,7 @@ export const Badge: React.FC<BadgeProps> = ({ variant = 'zinc', pulse = false, c
     rose: 'bg-rose-400',
     indigo: 'bg-zinc-400',
     slate: 'bg-zinc-400',
+    sky: 'bg-sky-400',
   };
 
   return (
@@ -259,6 +264,90 @@ export const Field: React.FC<FieldProps> = ({
   );
 };
 
+/* Standard Input, Select, Textarea, and Modal components */
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+}
+
+export const Input: React.FC<InputProps> = ({ label, className = '', ...props }) => (
+  <div className="space-y-1.5 text-left">
+    {label && (
+      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400">
+        {label}
+      </label>
+    )}
+    <input
+      className={`w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 ${className}`}
+      {...props}
+    />
+  </div>
+);
+
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  label?: string;
+  children: React.ReactNode;
+}
+
+export const Select: React.FC<SelectProps> = ({ label, children, className = '', ...props }) => (
+  <div className="space-y-1.5 text-left">
+    {label && (
+      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400">
+        {label}
+      </label>
+    )}
+    <select
+      className={`w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-zinc-900 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-zinc-500 ${className}`}
+      {...props}
+    >
+      {children}
+    </select>
+  </div>
+);
+
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string;
+}
+
+export const Textarea: React.FC<TextareaProps> = ({ label, className = '', ...props }) => (
+  <div className="space-y-1.5 text-left">
+    {label && (
+      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400">
+        {label}
+      </label>
+    )}
+    <textarea
+      className={`w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 ${className}`}
+      {...props}
+    />
+  </div>
+);
+
+export const Modal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}> = ({ open, onClose, title, children }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="surface-card rounded-2xl p-6 border border-zinc-800 bg-zinc-950 max-w-lg w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+          <h3 className="text-base font-bold text-white">{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-zinc-500 hover:text-white transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 export const PageHeader: React.FC<{
   title: string;
   subtitle?: string;
@@ -303,6 +392,7 @@ export const StatCard: React.FC<{
   value: string | number;
   subtext?: string;
   icon: LucideIcon;
+  accent?: string;
   trend?: { label: string; positive?: boolean };
 }> = ({ label, value, subtext, icon: Icon, trend }) => (
   <div className="surface-card rounded-2xl p-5 border border-zinc-800 hover:border-zinc-700 transition-colors">

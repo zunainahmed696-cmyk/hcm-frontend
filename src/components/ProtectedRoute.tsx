@@ -18,8 +18,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
   if (isLoading) return <FullPageSpinner label="Verifying your session…" />;
   if (!isAuthenticated || !user) return <Navigate to="/login" state={{ from: location }} replace />;
   if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
+  if (user.role === 'employee' && location.pathname === '/dashboard') {
+    return <Navigate to="/clockin-out" replace />;
+  }
   if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/unauthorized" replace />;
   if (requiredPermission && !hasPermission(user, requiredPermission)) return <Navigate to="/unauthorized" replace />;
   return children;
 };
-

@@ -12,8 +12,9 @@ export interface SetupInput {
   halfDayHours?: number;
   weekend?: number[];
   office?: {
-    lat?: number;
-    lng?: number;
+    address?: string;
+    lat?: number | null;
+    lng?: number | null;
     radiusMeters?: number;
   };
 }

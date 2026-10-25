@@ -118,7 +118,7 @@ export const Employees: React.FC = () => {
         api.get('/org/catalog/designations').catch(() => ({ data: { items: [] } })),
       ]);
 
-      setEmployees(empRes.data.employees || []);
+      setEmployees((empRes.data.employees || []).filter((e: Employee) => e.role !== 'admin'));
 
       const deptList = (deptRes.data.items || []).map((d: DepartmentItem) => d.name);
       setDepartments(deptList.length ? deptList : ['Engineering', 'Finance', 'Human Resources', 'Operations']);
@@ -528,7 +528,7 @@ export const Employees: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 p-3.5 rounded-xl bg-[#0B0F17] border border-emerald-500/20">
+          <div className="flex flex-wrap items-center gap-4 p-3.5 rounded-xl bg-zinc-950 border border-emerald-500/20">
             <div className="flex flex-col">
               <span className="text-[10px] uppercase font-mono text-slate-500">Corporate Login Email</span>
               <code className="text-sm font-mono text-emerald-300 font-semibold">{singleCreds.email}</code>
@@ -607,7 +607,7 @@ export const Employees: React.FC = () => {
       {/* ========================================================================= */}
       {/* THE LARGE HIGHLIGHTED CONTAINER (Replaces the Coming Soon placeholder)   */}
       {/* ========================================================================= */}
-      <div className="surface-card rounded-2xl border-2 border-brand-500/40 p-5 sm:p-6 shadow-2xl shadow-brand-950/40 space-y-5">
+      <div className="surface-card rounded-2xl border border-zinc-800 p-5 sm:p-6 space-y-5">
         {/* Top Filters & Controls within the Large Highlighted Container */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-white/5">
           {/* Search Box */}
@@ -896,7 +896,7 @@ export const Employees: React.FC = () => {
                 account in the User collection.
               </p>
 
-              <div className="rounded-xl border border-white/10 overflow-hidden bg-[#0B0F17]">
+              <div className="rounded-xl border border-white/10 overflow-hidden bg-zinc-950">
                 <table className="w-full text-left font-mono">
                   <thead>
                     <tr className="bg-surface-raised/80 text-[10px] text-slate-400 uppercase border-b border-white/10">
@@ -945,7 +945,7 @@ export const Employees: React.FC = () => {
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-indigo-300">role</td>
-                      <td className="p-2.5 text-amber-300">admin | hr | employee</td>
+                      <td className="p-2.5 text-amber-300">hr | employee</td>
                       <td className="p-2.5 font-sans">Access tier. Default: employee.</td>
                     </tr>
                     <tr>
@@ -1051,7 +1051,7 @@ export const Employees: React.FC = () => {
                   >
                     <option value="employee">Employee (Standard Access)</option>
                     <option value="hr">HR Officer (Management Access)</option>
-                    <option value="admin">Admin (System Full Access)</option>
+
                   </select>
                 </div>
               </div>
@@ -1304,7 +1304,7 @@ export const Employees: React.FC = () => {
 
               {/* Live Salary Calculation Preview */}
               {Number(formData.basicSalary) > 0 && (
-                <div className="p-3.5 rounded-xl bg-[#0B0F17] border border-white/5 space-y-2">
+                <div className="p-3.5 rounded-xl bg-zinc-950 border border-white/5 space-y-2">
                   <span className="text-[10px] uppercase font-mono text-slate-500 tracking-wider">
                     Automatic Salary Breakdown Preview (1.5× Rule)
                   </span>
@@ -1393,7 +1393,7 @@ export const Employees: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-[#0B0F17]">
+                <div className="max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950">
                   <table className="w-full text-left font-mono text-xs">
                     <thead>
                       <tr className="bg-surface-raised/80 text-[10px] text-slate-400 uppercase border-b border-white/10">
@@ -1506,7 +1506,7 @@ export const Employees: React.FC = () => {
 
                 {/* Dry Run Validation Results Panel */}
                 {bulkDryRunResult && (
-                  <div className="rounded-xl border border-white/10 p-4 bg-[#0B0F17] space-y-3">
+                  <div className="rounded-xl border border-white/10 p-4 bg-zinc-950 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {bulkDryRunResult.canCommit ? (
@@ -2012,7 +2012,7 @@ export const Employees: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-[#0B0F17] border border-white/5 space-y-2 font-mono text-xs">
+                <div className="p-3.5 rounded-xl bg-zinc-950 border border-white/5 space-y-2 font-mono text-xs">
                   <div>
                     <span className="text-slate-500 text-[10px] uppercase block">Login Email</span>
                     <span className="text-white font-semibold">{resetCreds.email}</span>

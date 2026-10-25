@@ -29,7 +29,7 @@ export const ChangePassword: React.FC = () => {
     const res = await changePassword(form.current, form.next);
     setLoading(false);
     if (res.success) {
-      navigate('/dashboard', { replace: true });
+      navigate(user.role === 'employee' ? '/clockin-out' : '/dashboard', { replace: true });
     } else {
       setError(res.message || 'Could not update password credentials.');
     }

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Sliders, Building2, Award, CalendarDays, Palmtree } from 'lucide-react';
+import { Sliders, Building2, Award, CalendarDays, Palmtree, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SettingsPanel } from '../components/SettingsPanel';
 import { CatalogPanel, CatalogField, CatalogColumn } from '../components/CatalogPanel';
+import { ShiftAssignmentPanel } from '../components/ShiftAssignmentPanel';
 import { PageHeader, Badge } from '../components/ui';
 
 const nameField: CatalogField = { key: 'name', label: 'Title / Name', type: 'text', placeholder: 'Enter name' };
@@ -22,6 +23,7 @@ const formatDate = (iso: string) =>
 const TABS = [
   { id: 'settings', label: 'Company Settings', icon: Sliders },
   { id: 'departments', label: 'Departments', icon: Building2 },
+  { id: 'shifts', label: 'Shift Assignment', icon: Clock },
   { id: 'designations', label: 'Designations', icon: Award },
   { id: 'leave-types', label: 'Leave Types', icon: Palmtree },
   { id: 'holidays', label: 'Public Holidays', icon: CalendarDays },
@@ -30,20 +32,21 @@ const TABS = [
 export const Organization: React.FC = () => {
   const { user } = useAuth();
   const canEdit = user?.role === 'admin';
-  const [tab, setTab] = useState<(typeof TABS)[number]['id']>('settings');
+  const canAssignShifts = user?.role === 'admin' || user?.role === 'hr';
+  const [tab, setTab] = useState<(typeof TABS)[number]['id']>(user?.role === 'hr' ? 'shifts' : 'settings');
 
   return (
     <div className="max-w-5xl space-y-6">
       <PageHeader
-        title="Organization Setup"
+        title="Departments & Organization Setup"
         subtitle={
           canEdit
-            ? 'Configure core entity policies, operational departments, designations, and leave quotas.'
-            : 'Operational policies and organizational structures established by Administrators (read-only).'
+            ? 'Configure core entity policies, operational departments, shift assignments, designations, and leave quotas.'
+            : 'Assign department and employee work shifts, and view organizational policies established by Administrators.'
         }
         badge={
-          <Badge variant={canEdit ? 'indigo' : 'slate'}>
-            {canEdit ? 'Administrative Access' : 'Read Only'}
+          <Badge variant={canEdit || tab === 'shifts' ? 'indigo' : 'slate'}>
+            {canEdit ? 'Administrative Access' : tab === 'shifts' ? 'HR Shift Assignment Access' : 'HR View & Shift Control'}
           </Badge>
         }
       />
@@ -61,7 +64,7 @@ export const Organization: React.FC = () => {
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 whitespace-nowrap ${
                 active
-                  ? 'bg-brand-600 text-white shadow-sm shadow-brand-600/20'
+                  ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -86,6 +89,8 @@ export const Organization: React.FC = () => {
             emptyHint="No departments created yet. Add Engineering, Human Resources, or Sales to group employees."
           />
         )}
+
+        {tab === 'shifts' && <ShiftAssignmentPanel canAssign={canAssignShifts} />}
 
         {tab === 'designations' && (
           <CatalogPanel
@@ -121,14 +126,15 @@ export const Organization: React.FC = () => {
               },
               {
                 header: 'Classification',
-                render: (i) => (
-                  <Badge variant={i.isPaid ? 'emerald' : 'slate'}>
-                    {i.isPaid ? 'Paid' : 'Unpaid'}
-                  </Badge>
-                ),
+                render: (i) =>
+                  i.isPaid ? (
+                    <Badge variant="emerald">Paid</Badge>
+                  ) : (
+                    <Badge variant="slate">Unpaid</Badge>
+                  ),
               },
             ]}
-            emptyHint="Hackathon baseline standard: Annual (14 days), Sick (8 days), Casual (10 days), Unpaid (unlimited)."
+            emptyHint="No leave types defined. Add Annual, Sick, Casual, or Unpaid leave policies."
           />
         )}
 
@@ -138,24 +144,29 @@ export const Organization: React.FC = () => {
             singular="Public Holiday"
             canEdit={canEdit}
             fields={[
-              { key: 'name', label: 'Holiday Occasion', type: 'text', placeholder: 'e.g. Independence Day' },
+              { key: 'name', label: 'Holiday Name', type: 'text', placeholder: 'e.g. Eid-ul-Fitr, Independence Day' },
               { key: 'date', label: 'Observed Date', type: 'date' },
             ]}
             columns={[
+              nameCol,
               {
-                header: 'Observed Date',
+                header: 'Calendar Date',
                 render: (i) => (
-                  <span className="font-mono text-xs text-brand-300 bg-brand-500/10 px-2 py-1 rounded border border-brand-500/20">
-                    {formatDate(i.date)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-brand-300 bg-brand-500/10 px-2 py-1 rounded border border-brand-500/20">
+                      {i.date}
+                    </span>
+                    <span className="text-slate-400 text-xs">{i.date ? formatDate(i.date) : ''}</span>
+                  </div>
                 ),
               },
-              nameCol,
             ]}
-            emptyHint="No official public holidays scheduled. Attendance calculations will treat standard calendar weekdays as workdays."
+            emptyHint="No public holidays registered. Dates added here are automatically skipped during leave deductions."
           />
         )}
       </div>
     </div>
   );
 };
+
+export default Organization;

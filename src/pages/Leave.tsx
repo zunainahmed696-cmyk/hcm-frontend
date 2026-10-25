@@ -264,7 +264,7 @@ export const Leave: React.FC = () => {
             onClick={() => setActiveTab('pending')}
             className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
               activeTab === 'pending'
-                ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
+                ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -281,7 +281,7 @@ export const Leave: React.FC = () => {
             onClick={() => setActiveTab('all')}
             className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
               activeTab === 'all'
-                ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
+                ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -290,10 +290,10 @@ export const Leave: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('apply')}
+            onClick={() => setActiveTab('apply')} style={user?.role === 'admin' ? { display: 'none' } : undefined}
             className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
               activeTab === 'apply'
-                ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
+                ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >

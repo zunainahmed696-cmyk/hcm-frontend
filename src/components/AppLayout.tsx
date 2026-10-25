@@ -44,9 +44,6 @@ export const AppLayout: React.FC = () => {
             <span className="text-base font-extrabold text-zinc-100 tracking-tight leading-none">
               HCM Lite
             </span>
-            <span className="text-[10px] font-mono uppercase bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">
-              v1.0
-            </span>
           </div>
           <p className="text-xs text-zinc-400 font-medium truncate mt-1">
             {companyName ?? 'Organization'}
@@ -67,25 +64,22 @@ export const AppLayout: React.FC = () => {
                 to={path}
                 onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) =>
-                  `group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${
-                    isActive
-                      ? 'bg-zinc-100 text-zinc-950 shadow-sm font-bold'
-                      : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900'
+                  `group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${isActive
+                    ? 'bg-zinc-100 text-zinc-950 shadow-sm font-bold'
+                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900'
                   }`
                 }
               >
                 {({ isActive }) => (
                   <>
                     <Icon
-                      className={`w-4 h-4 shrink-0 transition-colors ${
-                        isActive ? 'text-zinc-950' : 'text-zinc-400 group-hover:text-zinc-200'
-                      }`}
+                      className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-zinc-950' : 'text-zinc-400 group-hover:text-zinc-200'
+                        }`}
                     />
                     <span className="truncate">{label}</span>
                     {path === '/assistant' && (
-                      <span className={`ml-auto flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full border ${
-                        isActive ? 'bg-zinc-200 text-zinc-950 border-zinc-300' : 'bg-zinc-850 text-zinc-300 border-zinc-700'
-                      }`}>
+                      <span className={`ml-auto flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full border ${isActive ? 'bg-zinc-200 text-zinc-950 border-zinc-300' : 'bg-zinc-850 text-zinc-300 border-zinc-700'
+                        }`}>
                         <Sparkles className="w-2.5 h-2.5" /> AI
                       </span>
                     )}

@@ -136,7 +136,7 @@ export const Logins: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-[#0B0F17] border border-white/5">
+          <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-zinc-950 border border-zinc-800">
             <div className="flex flex-col">
               <span className="text-[10px] uppercase font-mono text-slate-500">Account Email</span>
               <code className="text-sm font-mono text-emerald-300 font-semibold">{creds.email}</code>

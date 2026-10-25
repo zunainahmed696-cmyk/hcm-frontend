@@ -1,8 +1,8 @@
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AdminDashboard } from './AdminDashboard';
 import { HRDashboard } from './HRDashboard';
-import { EmployeeDashboard } from './EmployeeDashboard';
 
 export const DashboardRouter: React.FC = () => {
   const { user } = useAuth();
@@ -15,7 +15,8 @@ export const DashboardRouter: React.FC = () => {
     return <HRDashboard />;
   }
 
-  return <EmployeeDashboard />;
+  // Employees do not see dashboards — redirect to their Clock In / Out terminal
+  return <Navigate to="/clockin-out" replace />;
 };
 
 export default DashboardRouter;

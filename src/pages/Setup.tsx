@@ -1,358 +1,389 @@
 import React, { useState } from 'react';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import {
-  Building2, ShieldCheck, Clock, MapPin, Calendar, Check,
-  Sparkles, ArrowRight, Compass
+  Building2, Clock, ShieldCheck, ArrowRight, CheckCircle2,
+  Briefcase, Sparkles, Lock, Users
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { AuthShell } from '../components/AuthShell';
 import { Alert, Field, FullPageSpinner, Button } from '../components/ui';
+import { OfficeLocationPicker } from '../components/OfficeLocationPicker';
 
-const DAYS_OF_WEEK = [
-  { day: 0, label: 'Sun' },
-  { day: 1, label: 'Mon' },
-  { day: 2, label: 'Tue' },
-  { day: 3, label: 'Wed' },
-  { day: 4, label: 'Thu' },
-  { day: 5, label: 'Fri' },
-  { day: 6, label: 'Sat' },
+const WEEKDAYS = [
+  { num: 1, label: 'Mon' },
+  { num: 2, label: 'Tue' },
+  { num: 3, label: 'Wed' },
+  { num: 4, label: 'Thu' },
+  { num: 5, label: 'Fri' },
+  { num: 6, label: 'Sat' },
+  { num: 0, label: 'Sun' },
 ];
 
 export const Setup: React.FC = () => {
-  const { setup, setupComplete, isLoading, isAuthenticated } = useAuth();
+  const { setup, isLoading, setupComplete } = useAuth();
   const navigate = useNavigate();
 
-  // Company details
-  const [companyName, setCompanyName] = useState('');
-  const [officeStart, setOfficeStart] = useState('09:00');
-  const [graceMinutes, setGraceMinutes] = useState('15');
-  const [halfDayHours, setHalfDayHours] = useState('5');
-  const [weekend, setWeekend] = useState<number[]>([0, 6]); // Sun, Sat
-
-  // Office Location
-  const [lat, setLat] = useState('24.8607');
-  const [lng, setLng] = useState('67.0011');
-  const [radiusMeters, setRadiusMeters] = useState('150');
-  const [locating, setLocating] = useState(false);
-
-  // Admin credentials
-  const [adminName, setAdminName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [form, setForm] = useState({
+    companyName: '',
+    officeStart: '09:00',
+    graceMinutes: '15',
+    halfDayHours: '5',
+    weekend: [0, 6] as number[],
+    officeAddress: 'I.I. Chundrigar Road, Karachi, Pakistan',
+    lat: '24.8508',
+    lng: '67.0005',
+    radiusMeters: '150',
+    adminName: '',
+    email: '',
+    password: '',
+    confirm: '',
+  });
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (isLoading || setupComplete === null) {
-    return <FullPageSpinner label="Verifying system initialization state…" />;
+    return <FullPageSpinner label="Preparing company onboarding…" />;
   }
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
-  if (setupComplete) return <Navigate to="/login" replace />;
 
-  const toggleWeekendDay = (day: number) => {
-    setWeekend((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
-    );
-  };
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm({ ...form, [k]: e.target.value });
 
-  const handleDetectLocation = () => {
-    if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser.');
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLat(position.coords.latitude.toFixed(6));
-        setLng(position.coords.longitude.toFixed(6));
-        setLocating(false);
-      },
-      (err) => {
-        setLocating(false);
-        setError(`Unable to detect location: ${err.message}. Default Karachi coordinates retained.`);
-      },
-      { timeout: 8000 }
-    );
+  const toggleWeekend = (dayNum: number) => {
+    setForm((prev) => {
+      const exists = prev.weekend.includes(dayNum);
+      const updated = exists
+        ? prev.weekend.filter((d) => d !== dayNum)
+        : [...prev.weekend, dayNum];
+      return { ...prev, weekend: updated };
+    });
   };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!companyName.trim()) return setError('Please specify the company name.');
-    if (!adminName.trim()) return setError('Please specify the administrator full name.');
-    if (!email.trim()) return setError('Please specify a corporate admin email address.');
-    if (password.length < 8) return setError('Password must be at least 8 characters in length.');
-    if (password !== confirm) return setError('Passwords do not match.');
+    if (!form.companyName.trim()) {
+      return setError('Company name is required to register your organization.');
+    }
+    if (!form.email.trim()) {
+      return setError('Administrator corporate email is required.');
+    }
+    if (form.password.length < 8) {
+      return setError('Administrator password must be at least 8 characters long.');
+    }
+    if (form.password !== form.confirm) {
+      return setError('Passwords do not match. Please verify.');
+    }
 
     setLoading(true);
+    const hasCoords = form.lat.trim() !== '' && form.lng.trim() !== '';
     const res = await setup({
-      companyName: companyName.trim(),
-      adminName: adminName.trim(),
-      email: email.trim().toLowerCase(),
-      password,
-      officeStart: officeStart || '09:00',
-      graceMinutes: Number(graceMinutes) || 15,
-      halfDayHours: Number(halfDayHours) || 5,
-      weekend: weekend.length > 0 ? weekend : [0, 6],
+      companyName: form.companyName.trim(),
+      officeStart: form.officeStart,
+      graceMinutes: Number(form.graceMinutes) || 15,
+      halfDayHours: Number(form.halfDayHours) || 5,
+      weekend: form.weekend,
       office: {
-        lat: Number(lat) || 24.8607,
-        lng: Number(lng) || 67.0011,
-        radiusMeters: Number(radiusMeters) || 150,
+        address: form.officeAddress.trim(),
+        lat: hasCoords ? Number(form.lat) : null,
+        lng: hasCoords ? Number(form.lng) : null,
+        radiusMeters: Number(form.radiusMeters) || 150,
       },
+      adminName: form.adminName.trim() || 'Master Administrator',
+      email: form.email.trim(),
+      password: form.password,
     });
     setLoading(false);
 
-    if (res.success) {
-      // Redirect admin to login page with registered flag and prefilled email
-      navigate(`/login?registered=true&email=${encodeURIComponent(email.trim().toLowerCase())}`);
+    if (!res.success) {
+      setError(res.message || 'Setup failed. Please verify all inputs.');
     } else {
-      setError(res.message || 'Setup encountered an unexpected error.');
+      navigate(`/login?registered=1&email=${encodeURIComponent(form.email.trim())}`, { replace: true });
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#080B11] text-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Glows */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-brand-600/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[450px] h-[350px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none" />
-
-      <div className="max-w-2xl w-full mx-auto space-y-8 relative z-10">
-        {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-brand-300 font-semibold mb-2 hover:bg-white/10 transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-brand-400" />
-            <span>HCM Lite Enterprise Setup</span>
+    <div className="min-h-screen bg-[#09090B] text-zinc-100 flex flex-col justify-between relative overflow-hidden">
+      {/* Top Bar */}
+      <header className="relative z-10 border-b border-zinc-800 bg-zinc-950">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link to="/landing" className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-700 flex items-center justify-center">
+              <Users className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <span className="text-base font-extrabold tracking-tight text-white">HCM Lite</span>
+              <span className="block text-[10px] font-mono text-zinc-400">Company Onboarding &amp; Setup</span>
+            </div>
           </Link>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-            Register Your Enterprise
-          </h1>
-          <p className="text-sm text-slate-400 max-w-md mx-auto">
-            Configure your company parameters, attendance policies, and provision the root Administrator account.
-          </p>
+
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-zinc-400 hidden sm:inline">Already configured your company?</span>
+            <Link
+              to="/login"
+              className="px-3.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 font-semibold text-white transition-colors"
+            >
+              Sign In
+            </Link>
+          </div>
         </div>
+      </header>
 
-        {/* The Card */}
-        <div className="surface-card rounded-2xl p-6 sm:p-8 border border-brand-500/30 shadow-2xl space-y-6">
-          {error && <Alert kind="error">{error}</Alert>}
-
-          <form onSubmit={onSubmit} className="space-y-6" noValidate>
-            {/* SECTION 1: COMPANY PROFILE */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-white/5 text-sm font-bold text-white uppercase tracking-wider font-mono">
-                <Building2 className="w-4 h-4 text-brand-400" />
-                <span>1. Company Profile</span>
-              </div>
-
-              <Field
-                id="companyName"
-                label="Legal Enterprise / Company Name *"
-                placeholder="e.g. Acme Corporation"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                required
-                autoFocus
-              />
+      {/* Main Content */}
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 w-full">
+        <div className="grid lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Onboarding Pitch & Checklist (4 cols) */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-mono">
+              <Sparkles className="w-3.5 h-3.5 text-zinc-300" />
+              <span>Multi-Tenant Workspace Provisioning</span>
             </div>
 
-            {/* SECTION 2: ATTENDANCE & OFFICE RULES */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-white/5 text-sm font-bold text-white uppercase tracking-wider font-mono">
-                <Clock className="w-4 h-4 text-brand-400" />
-                <span>2. Office Hours, Grace &amp; Weekend Policies</span>
-              </div>
-
-              <div className="grid sm:grid-cols-3 gap-4">
-                <Field
-                  id="officeStart"
-                  type="time"
-                  label="Office Start Time *"
-                  value={officeStart}
-                  onChange={(e) => setOfficeStart(e.target.value)}
-                  required
-                />
-
-                <Field
-                  id="graceMinutes"
-                  type="number"
-                  label="Grace Period (Minutes) *"
-                  hint="Lateness allowance"
-                  placeholder="15"
-                  value={graceMinutes}
-                  onChange={(e) => setGraceMinutes(e.target.value)}
-                  min="0"
-                  max="120"
-                  required
-                />
-
-                <Field
-                  id="halfDayHours"
-                  type="number"
-                  label="Half-Day Cutoff (Hours) *"
-                  hint="Minimum for half-day"
-                  placeholder="5"
-                  value={halfDayHours}
-                  onChange={(e) => setHalfDayHours(e.target.value)}
-                  min="1"
-                  max="12"
-                  required
-                />
-              </div>
-
-              {/* Weekend Selection */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 block">
-                  Designated Weekend Days (Off Days)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {DAYS_OF_WEEK.map(({ day, label }) => {
-                    const isSelected = weekend.includes(day);
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => toggleWeekendDay(day)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all duration-150 border ${
-                          isSelected
-                            ? 'bg-brand-600 text-white border-brand-500 shadow-md shadow-brand-600/30'
-                            : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        {label} {isSelected && '✓'}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="space-y-3">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                Sign Up &amp; Configure Your Company Workspace
+              </h1>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Establish your isolated organization tenant, attendance rules, office location perimeter, and administrator credentials.
+              </p>
             </div>
 
-            {/* SECTION 3: OFFICE GEOFENCE LOCATION */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                <div className="flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider font-mono">
-                  <MapPin className="w-4 h-4 text-brand-400" />
-                  <span>3. Office Location &amp; Geo-Fencing</span>
+            <div className="surface-card rounded-2xl p-5 border border-zinc-800 space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-mono">
+                What Gets Provisioned Automatically
+              </h3>
+
+              <div className="space-y-3 text-xs text-zinc-300">
+                {[
+                  {
+                    title: 'Isolated Organization Tenant',
+                    desc: 'Dedicated company workspace with strict multi-tenant data isolation.',
+                  },
+                  {
+                    title: 'Attendance & Geofence Engine',
+                    desc: 'Configures office start time, grace minutes, half-day threshold, and office address.',
+                  },
+                  {
+                    title: 'Starter HR Catalogs',
+                    desc: 'Seeds default Departments, Designations, and Leave Quotas (Annual, Sick, Casual).',
+                  },
+                  {
+                    title: 'Master Administrator Account',
+                    desc: 'Full executive access to onboard HR officers, import employees, and run payroll.',
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-white">{item.title}</div>
+                      <div className="text-zinc-400 text-[11px] leading-relaxed">{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Complete Company + Admin Registration Form (8 cols) */}
+          <div className="lg:col-span-8">
+            <form
+              onSubmit={onSubmit}
+              className="surface-card rounded-2xl p-6 sm:p-8 border border-zinc-800 space-y-6"
+              noValidate
+            >
+              {error && <Alert kind="error">{error}</Alert>}
+
+              {/* SECTION 1: ORGANIZATION IDENTITY & WORK SCHEDULE */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-800">
+                  <Building2 className="w-5 h-5 text-zinc-200" />
+                  <h2 className="text-base font-bold text-white">1. Organization Profile &amp; Shift Policy</h2>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleDetectLocation}
-                  disabled={locating}
-                  className="text-xs text-brand-400 hover:text-brand-300 font-mono flex items-center gap-1.5"
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field
+                    id="companyName"
+                    label="Company / Organization Name *"
+                    placeholder="e.g. Acme Technologies Pvt. Ltd."
+                    value={form.companyName}
+                    onChange={set('companyName')}
+                    autoFocus
+                    required
+                  />
+
+                  <Field
+                    id="officeStart"
+                    type="time"
+                    label="Official Shift Start Time *"
+                    hint="24h format (Default 09:00)"
+                    value={form.officeStart}
+                    onChange={set('officeStart')}
+                    required
+                  />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field
+                    id="graceMinutes"
+                    type="number"
+                    label="Late Grace Window (Minutes)"
+                    hint="Punches after Start + Grace are marked Late"
+                    value={form.graceMinutes}
+                    onChange={set('graceMinutes')}
+                    min="0"
+                    max="120"
+                  />
+
+                  <Field
+                    id="halfDayHours"
+                    type="number"
+                    label="Half-Day Threshold (Hours)"
+                    hint="Shifts shorter than this are marked Half-Day"
+                    value={form.halfDayHours}
+                    onChange={set('halfDayHours')}
+                    min="1"
+                    max="12"
+                  />
+                </div>
+
+                {/* Weekend Days Selector */}
+                <div className="space-y-2 pt-1">
+                  <label className="text-xs font-semibold text-zinc-300 block">
+                    Weekly Off-Days (Weekends — Excluded from Leave Deductions)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAYS.map((d) => {
+                      const active = form.weekend.includes(d.num);
+                      return (
+                        <button
+                          key={d.num}
+                          type="button"
+                          onClick={() => toggleWeekend(d.num)}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-mono font-bold border transition-colors ${
+                            active
+                              ? 'bg-zinc-100 text-zinc-950 border-zinc-100'
+                              : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
+                          }`}
+                        >
+                          {d.label} {active ? '✓' : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: OFFICE LOCATION & GEOFENCE PERIMETER */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-800">
+                  <Clock className="w-5 h-5 text-zinc-200" />
+                  <div>
+                    <h2 className="text-base font-bold text-white">2. Office Location &amp; Attendance Perimeter</h2>
+                  </div>
+                </div>
+
+                <OfficeLocationPicker
+                  allowDisable
+                  value={{
+                    address: form.officeAddress,
+                    lat: form.lat,
+                    lng: form.lng,
+                    radiusMeters: form.radiusMeters,
+                  }}
+                  onChange={(loc) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      officeAddress: loc.address,
+                      lat: loc.lat,
+                      lng: loc.lng,
+                      radiusMeters: loc.radiusMeters,
+                    }))
+                  }
+                />
+              </div>
+
+              {/* SECTION 3: MASTER ADMINISTRATOR CREDENTIALS */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-800">
+                  <Lock className="w-5 h-5 text-zinc-200" />
+                  <h2 className="text-base font-bold text-white">3. Master Administrator Account (Owner Login)</h2>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field
+                    id="adminName"
+                    label="Administrator Full Name *"
+                    placeholder="e.g. Zunain Ahmed"
+                    value={form.adminName}
+                    onChange={set('adminName')}
+                    required
+                  />
+
+                  <Field
+                    id="email"
+                    type="email"
+                    label="Corporate Login Email *"
+                    placeholder="e.g. admin@company.com"
+                    value={form.email}
+                    onChange={set('email')}
+                    autoComplete="username"
+                    required
+                  />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field
+                    id="password"
+                    type="password"
+                    label="Master Password *"
+                    hint="Min 8 characters"
+                    placeholder="••••••••••••"
+                    value={form.password}
+                    onChange={set('password')}
+                    autoComplete="new-password"
+                    required
+                  />
+
+                  <Field
+                    id="confirm"
+                    type="password"
+                    label="Confirm Master Password *"
+                    placeholder="••••••••••••"
+                    value={form.confirm}
+                    onChange={set('confirm')}
+                    autoComplete="new-password"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Submit Action */}
+              <div className="pt-4 border-t border-zinc-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Redirects to Sign In with your newly registered credentials.</span>
+                </div>
+
+                <Button
+                  id="setup-submit"
+                  type="submit"
+                  size="lg"
+                  loading={loading}
+                  icon={ArrowRight}
+                  className="w-full sm:w-auto"
                 >
-                  <Compass className={`w-3.5 h-3.5 ${locating ? 'animate-spin' : ''}`} />
-                  <span>{locating ? 'Detecting GPS…' : 'Use My GPS Location'}</span>
-                </button>
+                  Complete Setup &amp; Proceed to Sign In
+                </Button>
               </div>
-
-              <div className="grid sm:grid-cols-3 gap-4">
-                <Field
-                  id="lat"
-                  type="number"
-                  step="any"
-                  label="Office Latitude"
-                  placeholder="24.8607"
-                  value={lat}
-                  onChange={(e) => setLat(e.target.value)}
-                />
-                <Field
-                  id="lng"
-                  type="number"
-                  step="any"
-                  label="Office Longitude"
-                  placeholder="67.0011"
-                  value={lng}
-                  onChange={(e) => setLng(e.target.value)}
-                />
-                <Field
-                  id="radiusMeters"
-                  type="number"
-                  label="Allowed Radius (Meters)"
-                  hint="Check-in fence boundary"
-                  placeholder="150"
-                  value={radiusMeters}
-                  onChange={(e) => setRadiusMeters(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* SECTION 4: ADMINISTRATOR ACCOUNT */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-white/5 text-sm font-bold text-white uppercase tracking-wider font-mono">
-                <ShieldCheck className="w-4 h-4 text-brand-400" />
-                <span>4. Root Administrator Credentials</span>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field
-                  id="adminName"
-                  label="Administrator Full Name *"
-                  placeholder="e.g. Alexander Vance"
-                  value={adminName}
-                  onChange={(e) => setAdminName(e.target.value)}
-                  required
-                />
-
-                <Field
-                  id="email"
-                  type="email"
-                  label="Corporate Admin Email *"
-                  placeholder="admin@acme.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field
-                  id="password"
-                  type="password"
-                  label="Master Password *"
-                  hint="Min. 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <Field
-                  id="confirm"
-                  type="password"
-                  label="Confirm Password *"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <Button
-                id="setup-submit"
-                type="submit"
-                loading={loading}
-                icon={ShieldCheck}
-                className="w-full text-base py-3"
-              >
-                Complete Setup &amp; Proceed to Login
-              </Button>
-            </div>
-
-            <div className="text-center pt-2">
-              <span className="text-xs text-slate-500">
-                Already registered?{' '}
-                <Link to="/login" className="text-brand-400 hover:text-brand-300 font-semibold">
-                  Sign in to your account
-                </Link>
-              </span>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-zinc-800 py-5 px-4 text-center text-xs text-zinc-500 font-mono">
+        HCM Lite Institutional Workforce Platform &bull; Multi-Tenant Edition
+      </footer>
     </div>
   );
 };
-
-export default Setup;

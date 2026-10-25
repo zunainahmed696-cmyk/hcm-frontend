@@ -1,95 +1,92 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Clock, Calendar, Users, CheckCircle2, XCircle, AlertTriangle,
-  RefreshCw, Filter, Search, Download, Check, X, ShieldAlert,
-  ArrowRight, MapPin, Camera
+  Clock, Calendar, Users, CheckCircle2, AlertTriangle, XCircle,
+  Edit3, RefreshCw, MapPin, ShieldCheck, Check, X, RotateCcw, Camera, Eye
 } from 'lucide-react';
 import api, { errorMessage } from '../api/axios';
-import { useAuth } from '../context/AuthContext';
-import { Alert, Badge, Button, PageHeader, StatCard, Spinner, EmptyState } from '../components/ui';
+import { AttendanceBoardRow, AttendanceBoardResponse, AttendanceStatus } from '../types';
+import { Alert, Badge, Button, Input, Modal, Select, Spinner, StatCard, Textarea } from '../components/ui';
 
-interface AttendanceRow {
-  _id: string;
-  employeeId: string;
-  employeeName: string;
-  department: string;
-  designation: string;
-  date: string;
-  checkIn?: string;
-  checkOut?: string;
-  status: 'present' | 'late' | 'half-day' | 'absent';
-  workHours: number;
-  isLate: boolean;
-  lateMinutes: number;
-  checkInLocation?: { lat?: number; lng?: number; address?: string };
-  checkInPhoto?: string;
-  correctionRequest?: {
-    status: 'none' | 'pending' | 'approved' | 'rejected';
-    requestedCheckIn?: string;
-    requestedCheckOut?: string;
-    reason?: string;
-    adminNotes?: string;
-  };
-}
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const statusBadgeVariant = (s: AttendanceStatus) => {
+  switch (s) {
+    case 'Present':
+      return 'emerald';
+    case 'Late':
+      return 'amber';
+    case 'Half-Day':
+      return 'sky';
+    case 'On Leave':
+      return 'indigo';
+    case 'Holiday':
+    case 'Weekend':
+      return 'slate';
+    default:
+      return 'rose';
+  }
+};
 
 export const AttendanceBoard: React.FC = () => {
-  const { user } = useAuth();
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  const [activeTab, setActiveTab] = useState<'board' | 'corrections'>('board');
-  const [selectedDate, setSelectedDate] = useState(todayStr);
-  const [selectedDept, setSelectedDept] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const [records, setRecords] = useState<AttendanceRow[]>([]);
+  const [date, setDate] = useState(todayStr());
+  const [department, setDepartment] = useState('');
+  const [search, setSearch] = useState('');
+  const [board, setBoard] = useState<AttendanceBoardResponse | null>(null);
+  const [corrections, setCorrections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [success, setSuccess] = useState('');
+  const [resettingEmpId, setResettingEmpId] = useState<string | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
-  const loadAttendance = async () => {
+  // Override Modal State
+  const [editingRow, setEditingRow] = useState<AttendanceBoardRow | null>(null);
+  const [overrideStatus, setOverrideStatus] = useState<AttendanceStatus>('Present');
+  const [overrideCheckIn, setOverrideCheckIn] = useState('');
+  const [overrideCheckOut, setOverrideCheckOut] = useState('');
+  const [overrideNotes, setOverrideNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Punch Photo Lightbox Modal State
+  const [photoModalRow, setPhotoModalRow] = useState<AttendanceBoardRow | null>(null);
+
+  const loadBoard = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const params: any = {};
-      if (selectedDate) params.date = selectedDate;
-      if (selectedDept !== 'all') params.department = selectedDept;
-      if (selectedStatus !== 'all') params.status = selectedStatus;
-
-      const res = await api.get('/attendance/all', { params });
-      setRecords(res.data.attendances || []);
+      const [boardRes, corrRes] = await Promise.all([
+        api.get('/attendance/board', {
+          params: { date, ...(department ? { department } : {}) },
+        }),
+        api.get('/attendance/corrections', { params: { status: 'Pending' } }),
+      ]);
+      setBoard(boardRes.data);
+      setCorrections(corrRes.data.requests || []);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [date, department]);
 
   useEffect(() => {
-    loadAttendance();
-  }, [selectedDate, selectedDept, selectedStatus]);
+    loadBoard();
+  }, [loadBoard]);
 
-  // Review Correction Request
-  const handleReviewCorrection = async (
-    recordId: string,
-    decision: 'approved' | 'rejected',
-    empName: string
-  ) => {
-    const promptMsg = decision === 'approved'
-      ? `Approve attendance correction for ${empName}? Optional note:`
-      : `Reject attendance correction for ${empName}? Reason for rejection:`;
-
-    const notes = window.prompt(promptMsg, decision === 'approved' ? 'Approved based on manager sign-off' : 'Discrepancy in punch records');
-    if (notes === null) return;
-
-    setReviewingId(recordId);
+  const handleReviewCorrection = async (id: string, decision: 'Approved' | 'Rejected') => {
     setError('');
-    setSuccessMsg('');
+    setSuccess('');
+    setReviewingId(id);
     try {
-      await api.put(`/attendance/corrections/${recordId}/review`, { decision, notes });
-      setSuccessMsg(`Attendance correction for ${empName} has been ${decision}. Notification sent to employee.`);
-      await loadAttendance();
+      const res = await api.put(`/attendance/corrections/${id}/review`, {
+        status: decision,
+        reviewNotes: decision === 'Approved' ? 'Approved & clock-out reset by management.' : 'Rejected by management.',
+      });
+      setSuccess(res.data.message || `Request ${decision.toLowerCase()} successfully.`);
+      await loadBoard();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -97,352 +94,432 @@ export const AttendanceBoard: React.FC = () => {
     }
   };
 
-  // Export CSV
-  const exportCSV = () => {
-    if (records.length === 0) return;
-    const headers = ['Employee ID', 'Name', 'Department', 'Designation', 'Date', 'Check In', 'Check Out', 'Hours', 'Status', 'Late Minutes'];
-    const rows = records.map((r) => [
-      r.employeeId,
-      r.employeeName,
-      r.department,
-      r.designation,
-      r.date,
-      r.checkIn ? new Date(r.checkIn).toLocaleTimeString() : '-',
-      r.checkOut ? new Date(r.checkOut).toLocaleTimeString() : '-',
-      r.workHours || 0,
-      r.status,
-      r.lateMinutes || 0,
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Attendance_${selectedDate || 'all'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleResetClockOut = async (employeeId: string, fullName: string) => {
+    setError('');
+    setSuccess('');
+    setResettingEmpId(employeeId);
+    try {
+      const res = await api.post('/attendance/clockout-reset', {
+        employeeId,
+        date,
+        notes: `Clock-out reset by management for ${fullName}.`,
+      });
+      setSuccess(res.data.message || `Clock-out reset for ${fullName}. Their shift is now active again.`);
+      await loadBoard();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setResettingEmpId(null);
+    }
   };
 
-  // Filtered rows for search bar
-  const filteredRecords = records.filter((r) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
+  const openOverride = (row: AttendanceBoardRow) => {
+    setEditingRow(row);
+    setOverrideStatus(row.status);
+    setOverrideCheckIn(row.checkIn ? new Date(row.checkIn).toTimeString().slice(0, 5) : '09:00');
+    setOverrideCheckOut(row.checkOut ? new Date(row.checkOut).toTimeString().slice(0, 5) : '17:30');
+    setOverrideNotes(row.notes || '');
+  };
+
+  const handleSaveOverride = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRow) return;
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const checkInISO = overrideCheckIn ? new Date(`${date}T${overrideCheckIn}:00`).toISOString() : null;
+      const checkOutISO = overrideCheckOut ? new Date(`${date}T${overrideCheckOut}:00`).toISOString() : null;
+
+      await api.put('/attendance/override', {
+        employeeId: editingRow.employeeId,
+        date,
+        status: overrideStatus,
+        checkIn: checkInISO,
+        checkOut: checkOutISO,
+        notes: overrideNotes,
+      });
+      setSuccess(`Updated attendance record for ${editingRow.fullName}.`);
+      setEditingRow(null);
+      await loadBoard();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const rows = (board?.rows || []).filter((r) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
     return (
-      r.employeeName.toLowerCase().includes(q) ||
+      r.fullName.toLowerCase().includes(q) ||
       r.employeeId.toLowerCase().includes(q) ||
       r.department.toLowerCase().includes(q)
     );
   });
 
-  const pendingCorrections = records.filter((r) => r.correctionRequest && r.correctionRequest.status === 'pending');
-
-  const presentCount = records.filter((r) => r.status === 'present' || r.status === 'late').length;
-  const lateCount = records.filter((r) => r.isLate || r.status === 'late').length;
-  const halfDayCount = records.filter((r) => r.status === 'half-day').length;
-
   return (
-    <div className="max-w-7xl space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <PageHeader
-        title="Company Attendance Terminal & Board"
-        subtitle="Live organizational attendance board, daily punch logs, and employee correction reviews."
-        badge={
-          <Badge variant={user?.role === 'admin' ? 'indigo' : 'amber'}>
-            {user?.role === 'admin' ? 'Owner / Admin Board' : 'HR Attendance Operations'}
-          </Badge>
-        }
-        action={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" icon={Download} onClick={exportCSV} disabled={records.length === 0}>
-              Export CSV
-            </Button>
-            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={loadAttendance}>
-              Refresh
-            </Button>
-          </div>
-        }
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-white/5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+            <Clock className="w-8 h-8 text-brand-400" />
+            Organization Attendance Board
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Real-time daily roster, employee punch photos, accidental clock-out resets, and manual overrides.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-xl bg-surface-input border border-white/10 px-3.5 py-2 text-xs font-mono text-white"
+          />
+          <Button variant="outline" size="sm" icon={RefreshCw} onClick={loadBoard}>
+            Refresh
+          </Button>
+        </div>
+      </div>
 
       {error && <Alert kind="error">{error}</Alert>}
-      {successMsg && <Alert kind="success">{successMsg}</Alert>}
+      {success && <Alert kind="success">{success}</Alert>}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Present Today"
-          value={String(presentCount)}
-          subtext="Clocked in staff"
-          icon={CheckCircle2}
-        />
-        <StatCard
-          label="Late Arrivals"
-          value={String(lateCount)}
-          subtext="Past 15m grace window"
-          icon={AlertTriangle}
-        />
-        <StatCard
-          label="Half-Day Logs"
-          value={String(halfDayCount)}
-          subtext="Under 5 hours recorded"
-          icon={Clock}
-        />
-        <StatCard
-          label="Pending Corrections"
-          value={String(pendingCorrections.length)}
-          subtext="Awaiting manager review"
-          icon={ShieldAlert}
-        />
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-2 p-1 bg-surface-card rounded-xl border border-white/5 max-w-md">
-        <button
-          onClick={() => setActiveTab('board')}
-          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
-            activeTab === 'board'
-              ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5" />
-          <span>Daily Punch Board</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('corrections')}
-          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
-            activeTab === 'corrections'
-              ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <ShieldAlert className="w-3.5 h-3.5" />
-          <span>Correction Requests</span>
-          {pendingCorrections.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400 text-slate-900 font-bold">
-              {pendingCorrections.length}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {activeTab === 'board' ? (
-        <div className="space-y-4">
-          {/* Filters Bar */}
-          <div className="surface-card rounded-2xl p-4 border border-white/5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search by name, ID, or department…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-surface-raised rounded-xl text-xs text-white placeholder-slate-500 border border-white/5 focus:outline-none focus:border-brand-500"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="px-3 py-1.5 bg-surface-raised rounded-xl text-xs text-white border border-white/5 focus:outline-none focus:border-brand-500"
-                />
-              </div>
-
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-3 py-2 bg-surface-raised rounded-xl text-xs text-white border border-white/5 focus:outline-none focus:border-brand-500"
-              >
-                <option value="all">All Statuses</option>
-                <option value="present">Present</option>
-                <option value="late">Late</option>
-                <option value="half-day">Half Day</option>
-                <option value="absent">Absent</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table */}
-          {loading ? (
-            <div className="py-20 text-center text-slate-400">
-              <Spinner className="inline w-8 h-8 text-brand-500 mb-2" />
-              <p className="text-sm">Loading attendance records…</p>
-            </div>
-          ) : filteredRecords.length === 0 ? (
-            <EmptyState
-              icon={Clock}
-              title="No Attendance Records Found"
-              description={`No punch records found for the selected date (${selectedDate}).`}
-              action={
-                <Button variant="outline" size="sm" onClick={() => { setSelectedDate(''); loadAttendance(); }}>
-                  Clear Date Filter
-                </Button>
-              }
-            />
-          ) : (
-            <div className="surface-card rounded-2xl border border-white/5 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead>
-                    <tr className="bg-surface-raised/80 text-slate-400 border-b border-white/5">
-                      <th className="p-3.5">Employee</th>
-                      <th className="p-3.5">Date</th>
-                      <th className="p-3.5">Clock In</th>
-                      <th className="p-3.5">Clock Out</th>
-                      <th className="p-3.5">Total Hours</th>
-                      <th className="p-3.5">Status</th>
-                      <th className="p-3.5">Verification</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {filteredRecords.map((r) => {
-                      const checkInTime = r.checkIn ? new Date(r.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
-                      const checkOutTime = r.checkOut ? new Date(r.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
-
-                      return (
-                        <tr key={r._id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="p-3.5">
-                            <div className="font-bold text-white font-sans">{r.employeeName}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">{r.employeeId} • {r.department}</div>
-                          </td>
-                          <td className="p-3.5 text-slate-300">{r.date}</td>
-                          <td className="p-3.5">
-                            <span className="font-bold text-emerald-300">{checkInTime}</span>
-                            {r.isLate && (
-                              <span className="ml-1.5 text-[10px] text-amber-400 font-sans">
-                                (+{r.lateMinutes}m)
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3.5">
-                            <span className="text-slate-300">{checkOutTime}</span>
-                          </td>
-                          <td className="p-3.5">
-                            <span className="font-bold text-white">{r.workHours || 0} hrs</span>
-                          </td>
-                          <td className="p-3.5">
-                            <Badge
-                              variant={
-                                r.status === 'present'
-                                  ? 'emerald'
-                                  : r.status === 'late'
-                                  ? 'amber'
-                                  : r.status === 'half-day'
-                                  ? 'indigo'
-                                  : 'rose'
-                              }
-                            >
-                              {r.status.toUpperCase()}
-                            </Badge>
-                          </td>
-                          <td className="p-3.5 text-slate-400">
-                            {r.checkInPhoto ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] text-cyan-300">
-                                <Camera className="w-3 h-3" /> Camera Face
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-                                Web Punch
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+      {/* Summary KPIs */}
+      {board && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <StatCard label="Active Staff" value={board.summary.totalEmployees} icon={Users} accent="indigo" />
+          <StatCard label="Present" value={board.summary.present} icon={CheckCircle2} accent="emerald" />
+          <StatCard label="Late Arrival" value={board.summary.late} icon={AlertTriangle} accent="amber" />
+          <StatCard label="Half-Day" value={board.summary.halfDay} icon={Clock} accent="sky" />
+          <StatCard label="On Leave" value={board.summary.onLeave} icon={Calendar} accent="indigo" />
+          <StatCard label="Absent" value={board.summary.absent} icon={XCircle} accent="rose" />
         </div>
-      ) : (
-        /* Attendance Corrections Tab */
-        <div className="space-y-4">
-          <div className="surface-card rounded-2xl p-6 border border-white/5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white">Pending Attendance Correction Requests</h3>
-                <p className="text-xs text-slate-400">Employees who requested punch adjustments with justifications</p>
-              </div>
-              <Badge variant={pendingCorrections.length > 0 ? 'amber' : 'emerald'}>
-                {pendingCorrections.length} Pending Review
-              </Badge>
-            </div>
+      )}
 
-            {pendingCorrections.length === 0 ? (
-              <div className="p-8 rounded-xl bg-surface-raised/40 border border-white/5 text-center space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                <p className="text-sm font-semibold text-white">No Pending Correction Requests</p>
-                <p className="text-xs text-slate-400">All submitted employee correction requests have been processed.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-white/5">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead>
-                    <tr className="bg-surface-raised/60 text-slate-400 border-b border-white/5">
-                      <th className="p-3">Employee</th>
-                      <th className="p-3">Date</th>
-                      <th className="p-3">Requested In / Out</th>
-                      <th className="p-3">Reason</th>
-                      <th className="p-3 text-right">Review Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {pendingCorrections.map((r) => {
-                      const reqIn = r.correctionRequest?.requestedCheckIn
-                        ? new Date(r.correctionRequest.requestedCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '—';
-                      const reqOut = r.correctionRequest?.requestedCheckOut
-                        ? new Date(r.correctionRequest.requestedCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '—';
-
-                      return (
-                        <tr key={r._id} className="hover:bg-white/[0.02]">
-                          <td className="p-3">
-                            <div className="font-bold text-white font-sans">{r.employeeName}</div>
-                            <div className="text-[10px] text-slate-400">{r.employeeId} • {r.department}</div>
-                          </td>
-                          <td className="p-3 text-slate-300 font-bold">{r.date}</td>
-                          <td className="p-3">
-                            <div className="text-emerald-300">In: {reqIn}</div>
-                            <div className="text-slate-400">Out: {reqOut}</div>
-                          </td>
-                          <td className="p-3 text-slate-300 max-w-xs font-sans">
-                            {r.correctionRequest?.reason || 'No reason provided'}
-                          </td>
-                          <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                disabled={reviewingId === r._id}
-                                onClick={() => handleReviewCorrection(r._id, 'approved', r.employeeName)}
-                                className="px-2.5 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[11px] font-sans font-semibold transition-colors disabled:opacity-50"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                disabled={reviewingId === r._id}
-                                onClick={() => handleReviewCorrection(r._id, 'rejected', r.employeeName)}
-                                className="px-2.5 py-1 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-[11px] font-sans font-semibold transition-colors disabled:opacity-50"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+      {/* Pending Clock-Out Reset & Attendance Correction Requests */}
+      {corrections.length > 0 && (
+        <div className="surface-card rounded-2xl p-5 border border-white/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <RotateCcw className="w-4 h-4 text-amber-400" />
+              Pending Clock-Out Reset &amp; Attendance Applications ({corrections.length})
+            </h2>
+            <Badge variant="amber">Action Required</Badge>
+          </div>
+          <div className="divide-y divide-white/5">
+            {corrections.map((c: any) => {
+              const isClockOutReset = c.requestType === 'clockout_reset';
+              return (
+                <div key={c._id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-white">
+                        {c.employee?.fullName || c.employeeId} ({c.employeeId}) — <span className="text-brand-300 font-mono">{c.date}</span>
+                      </p>
+                      <Badge variant={isClockOutReset ? 'amber' : 'indigo'}>
+                        {isClockOutReset ? 'Accidental Clock-Out Reset' : 'Time Correction'}
+                      </Badge>
+                    </div>
+                    {!isClockOutReset && (
+                      <p className="text-slate-400">
+                        Requested In: <strong className="text-slate-200 font-mono">{c.requestedCheckIn ? new Date(c.requestedCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</strong> •
+                        Out: <strong className="text-slate-200 font-mono">{c.requestedCheckOut ? new Date(c.requestedCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</strong>
+                      </p>
+                    )}
+                    <p className="text-slate-300">Application Note: &ldquo;{c.reason}&rdquo;</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      icon={Check}
+                      loading={reviewingId === c._id}
+                      onClick={() => handleReviewCorrection(c._id, 'Approved')}
+                    >
+                      {isClockOutReset ? 'Approve & Reset Clock-Out' : 'Approve'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      icon={X}
+                      loading={reviewingId === c._id}
+                      onClick={() => handleReviewCorrection(c._id, 'Rejected')}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
+
+      {/* Search & Filter Controls */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1">
+          <Input
+            placeholder="Filter by employee name, ID, or department…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="w-full sm:w-56">
+          <Select value={department} onChange={(e) => setDepartment(e.target.value)}>
+            <option value="">All Departments</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Human Resources">Human Resources</option>
+            <option value="Operations">Operations</option>
+            <option value="Finance">Finance</option>
+            <option value="Sales">Sales</option>
+          </Select>
+        </div>
+      </div>
+
+      {/* Roster Table */}
+      <div className="surface-card rounded-2xl border border-white/5 overflow-hidden">
+        {loading ? (
+          <div className="py-20 text-center text-slate-400">
+            <Spinner className="inline w-6 h-6 mr-2 text-brand-500" />
+            Loading attendance records…
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-white/5 bg-white/[0.02] text-[11px] font-mono uppercase text-slate-400">
+                  <th className="py-3.5 px-4">Employee</th>
+                  <th className="py-3.5 px-4">Department</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4">Check In</th>
+                  <th className="py-3.5 px-4">Check Out</th>
+                  <th className="py-3.5 px-4">Punch Photo</th>
+                  <th className="py-3.5 px-4">Late</th>
+                  <th className="py-3.5 px-4">Hours</th>
+                  <th className="py-3.5 px-4">GPS</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {rows.map((r) => {
+                  const hasPhoto = !!(r.checkInPhoto || r.checkOutPhoto);
+                  const previewPhoto = r.checkInPhoto || r.checkOutPhoto;
+                  return (
+                    <tr key={r.employeeId} className="hover:bg-white/[0.02] transition">
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-white">{r.fullName}</div>
+                        <div className="text-[11px] font-mono text-slate-500">
+                          {r.employeeId} • {r.designation}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-300">{r.department}</td>
+                      <td className="py-3.5 px-4">
+                        <Badge variant={statusBadgeVariant(r.status)}>{r.status}</Badge>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-200">
+                        {r.checkIn ? new Date(r.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-200">
+                        {r.checkOut ? new Date(r.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {hasPhoto && previewPhoto ? (
+                          <button
+                            type="button"
+                            onClick={() => setPhotoModalRow(r)}
+                            className="group relative inline-flex items-center gap-2 p-1 rounded-lg border border-white/10 bg-white/[0.03] hover:border-white/30 transition"
+                            title="Click to inspect full punch image"
+                          >
+                            <img
+                              src={previewPhoto}
+                              alt={`${r.fullName} punch`}
+                              className="w-10 h-8 object-cover rounded"
+                            />
+                            <span className="text-[10px] font-mono text-brand-300 pr-1.5 flex items-center gap-1">
+                              <Eye className="w-3 h-3" /> View
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] font-mono text-slate-600 flex items-center gap-1">
+                            <Camera className="w-3 h-3" /> No image
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono">
+                        {r.lateMinutes > 0 ? (
+                          <span className="text-amber-400 font-semibold">+{r.lateMinutes}m</span>
+                        ) : (
+                          <span className="text-slate-500">0m</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-brand-300 font-semibold">
+                        {r.workingHours > 0 ? `${r.workingHours.toFixed(2)}h` : '—'}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {r.checkInLocation ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-400 font-mono text-[11px]">
+                            <MapPin className="w-3.5 h-3.5" />
+                            {r.checkInLocation.withinGeofence ? 'In Zone' : 'Out'}
+                          </span>
+                        ) : r.isManualOverride ? (
+                          <span className="inline-flex items-center gap-1 text-indigo-400 font-mono text-[11px]">
+                            <ShieldCheck className="w-3.5 h-3.5" /> Manual
+                          </span>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          {r.checkOut && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              icon={RotateCcw}
+                              loading={resettingEmpId === r.employeeId}
+                              onClick={() => handleResetClockOut(r.employeeId, r.fullName)}
+                            >
+                              Reset Clock-Out
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" icon={Edit3} onClick={() => openOverride(r)}>
+                            Override
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Punch Image Verification Modal */}
+      <Modal
+        open={!!photoModalRow}
+        onClose={() => setPhotoModalRow(null)}
+        title={photoModalRow ? `Punch Image Verification — ${photoModalRow.fullName}` : 'Punch Photo'}
+      >
+        {photoModalRow && (
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-between text-xs">
+              <div>
+                <p className="font-bold text-white">{photoModalRow.fullName} ({photoModalRow.employeeId})</p>
+                <p className="text-slate-400">{photoModalRow.department} • {photoModalRow.designation}</p>
+              </div>
+              <Badge variant={statusBadgeVariant(photoModalRow.status)}>{photoModalRow.status}</Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-white/10 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-emerald-400">Check-In Punch Photo</span>
+                  <span className="font-mono text-slate-400">
+                    {photoModalRow.checkIn ? new Date(photoModalRow.checkIn).toLocaleTimeString() : '—'}
+                  </span>
+                </div>
+                {photoModalRow.checkInPhoto ? (
+                  <img
+                    src={photoModalRow.checkInPhoto}
+                    alt="Check-In Punch"
+                    className="w-full h-52 object-cover rounded-lg border border-white/10"
+                  />
+                ) : (
+                  <div className="h-52 rounded-lg border border-dashed border-white/10 flex items-center justify-center text-xs text-slate-500">
+                    No Check-In Photo Captured
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-white/10 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-sky-400">Check-Out Punch Photo</span>
+                  <span className="font-mono text-slate-400">
+                    {photoModalRow.checkOut ? new Date(photoModalRow.checkOut).toLocaleTimeString() : '—'}
+                  </span>
+                </div>
+                {photoModalRow.checkOutPhoto ? (
+                  <img
+                    src={photoModalRow.checkOutPhoto}
+                    alt="Check-Out Punch"
+                    className="w-full h-52 object-cover rounded-lg border border-white/10"
+                  />
+                ) : (
+                  <div className="h-52 rounded-lg border border-dashed border-white/10 flex items-center justify-center text-xs text-slate-500">
+                    No Check-Out Photo Captured
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setPhotoModalRow(null)}>
+                Close Preview
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Manual Override Modal */}
+      <Modal
+        open={!!editingRow}
+        onClose={() => setEditingRow(null)}
+        title={editingRow ? `Override Attendance — ${editingRow.fullName}` : 'Override Attendance'}
+      >
+        <form onSubmit={handleSaveOverride} className="space-y-4">
+          <Select
+            label="Attendance Status"
+            value={overrideStatus}
+            onChange={(e) => setOverrideStatus(e.target.value as AttendanceStatus)}
+          >
+            <option value="Present">Present</option>
+            <option value="Late">Late</option>
+            <option value="Half-Day">Half-Day</option>
+            <option value="Absent">Absent</option>
+            <option value="On Leave">On Leave</option>
+            <option value="Holiday">Holiday</option>
+          </Select>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Check-In Time (HH:mm)"
+              type="time"
+              value={overrideCheckIn}
+              onChange={(e) => setOverrideCheckIn(e.target.value)}
+            />
+            <Input
+              label="Check-Out Time (HH:mm)"
+              type="time"
+              value={overrideCheckOut}
+              onChange={(e) => setOverrideCheckOut(e.target.value)}
+            />
+          </div>
+
+          <Textarea
+            label="Audit / Override Notes"
+            rows={3}
+            value={overrideNotes}
+            onChange={(e) => setOverrideNotes(e.target.value)}
+            placeholder="Reason for manual attendance override…"
+          />
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setEditingRow(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={saving}>
+              Save Override
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

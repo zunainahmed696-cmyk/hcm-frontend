@@ -83,7 +83,7 @@ export const EMPLOYEE_NAV_ITEMS: NavItem[] = [
   // Additional Self-Service Capabilities
   { path: '/payslips',            label: 'My Payslips',             category: 'Finance & Analytics',   icon: Wallet,          roles: ['employee'], phase: 'Phase 6', description: 'Download own payslips and salary breakdown.' },
   { path: '/assistant',           label: 'AI Assistant',            category: 'Finance & Analytics',   icon: Sparkles,        roles: ['employee'], phase: 'Phase 9', description: 'AI assistant on your own attendance, leave and company policies.' },
-  { path: '/dashboard',           label: 'My Dashboard',            category: 'General',               icon: LayoutDashboard, roles: ['employee'], phase: 'Phase 8', description: 'Hours worked, late count, leave balance, last payslip.' },
+
 ];
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -23,9 +23,8 @@ export const Landing: React.FC = () => {
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-lg text-white tracking-tight">HCM Lite</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300 font-bold">
-                  v1.0
-                </span>
+
+
               </div>
               <span className="text-[11px] text-zinc-400 font-mono">Workforce Management Cloud</span>
             </div>
