@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { Landing } from './pages/Landing';
@@ -43,42 +44,45 @@ const PAGES: Record<string, React.ReactElement> = {
 };
 
 export const App: React.FC = () => (
-  <Routes>
-    {/* Public routes */}
-    <Route path="/"               element={<Landing />} />
-    <Route path="/setup"          element={<Setup />} />
-    <Route path="/signup"         element={<Setup />} />
-    <Route path="/login"          element={<Login />} />
-    <Route path="/change-password" element={<ChangePassword />} />
-    <Route path="/unauthorized"   element={<Unauthorized />} />
+  <>
+    <Routes>
+      {/* Public routes */}
+      <Route path="/"               element={<Landing />} />
+      <Route path="/setup"          element={<Setup />} />
+      <Route path="/signup"         element={<Setup />} />
+      <Route path="/login"          element={<Login />} />
+      <Route path="/change-password" element={<ChangePassword />} />
+      <Route path="/unauthorized"   element={<Unauthorized />} />
 
-    {/* Protected app shell with strictly role-scoped sidebar */}
-    <Route
-      element={
-        <ProtectedRoute>
-          <AppLayout />
-        </ProtectedRoute>
-      }
-    >
-      {/*
-        Register every unique route from NAV_ITEMS.
-        Each route is guarded by allowedRoles – unauthorized roles are blocked.
-      */}
-      {NAV_ITEMS.map((item) => (
-        <Route
-          key={item.path}
-          path={item.path}
-          element={
-            <ProtectedRoute allowedRoles={item.roles}>
-              {PAGES[item.path] ?? <DashboardRouter />}
-            </ProtectedRoute>
-          }
-        />
-      ))}
-    </Route>
+      {/* Protected app shell with strictly role-scoped sidebar */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        {/*
+          Register every unique route from NAV_ITEMS.
+          Each route is guarded by allowedRoles – unauthorized roles are blocked.
+        */}
+        {NAV_ITEMS.map((item) => (
+          <Route
+            key={item.path}
+            path={item.path}
+            element={
+              <ProtectedRoute allowedRoles={item.roles}>
+                {PAGES[item.path] ?? <DashboardRouter />}
+              </ProtectedRoute>
+            }
+          />
+        ))}
+      </Route>
 
-    <Route path="*" element={<NotFound />} />
-  </Routes>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+    <Analytics />
+  </>
 );
 
 export default App;
